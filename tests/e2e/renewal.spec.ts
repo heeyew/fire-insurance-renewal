@@ -1,13 +1,21 @@
 import {test,expect} from '@playwright/test';
 import {createClient} from '@supabase/supabase-js';
 import {readFile} from 'node:fs/promises';
-import {today,reminderDate,nextYear} from '../../lib/domain';
+import {today,reminderDate,nextYear,statusFor,STATUSES} from '../../lib/domain';
 
 test('Director creates, edits, renews, verifies history and refresh, exports and deletes',async({page})=>{
   const db=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
   const name=`E2E Test Tower ${Date.now()}`;
   const date=new Date(today()+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+14);const renewal=date.toISOString().slice(0,10);
   let id:string|undefined;
+  const verifyDashboardCounts=async()=>{
+    const result=await db.from('properties').select('renewal_date,status');
+    expect(result.error).toBeNull();
+    for(const status of STATUSES){
+      const count=result.data!.filter(property=>statusFor(property.renewal_date,property.status)===status).length;
+      await expect(page.getByRole('link',{name:`Show ${status} properties: ${count}`,exact:true})).toBeVisible();
+    }
+  };
   try {
     await page.goto('/');
     await expect(page.getByRole('heading',{name:'Stay ahead of every renewal.'})).toBeVisible();
@@ -25,6 +33,11 @@ test('Director creates, edits, renews, verifies history and refresh, exports and
     await expect(modal).not.toBeVisible();
     let row=page.getByRole('row').filter({has:page.getByRole('link',{name,exact:true})});
     await expect(row).toContainText('8,300,000.00');await expect(row.locator('.status')).toHaveText('due');
+    await verifyDashboardCounts();
+    await page.getByRole('link',{name:/^Show due properties:/}).click();
+    await expect(page.getByRole('heading',{name:/^Due properties/})).toBeVisible();
+    for(const badge of await page.locator('tbody .status').all()) await expect(badge).toHaveText('due');
+    await page.getByRole('link',{name:'All properties',exact:true}).click();
     const saved=await db.from('properties').select('*').eq('name',name).single();expect(saved.error).toBeNull();id=saved.data.id;
     expect(saved.data.reminder_date).toBe(reminderDate(renewal));
     await row.getByRole('button',{name:'Edit',exact:true}).click();
@@ -43,6 +56,7 @@ test('Director creates, edits, renews, verifies history and refresh, exports and
     await modal.getByRole('button',{name:'Confirm renewal',exact:true}).click();
     await expect(modal).not.toBeVisible();
     await expect(row.locator('.status')).toHaveText('renewed');
+    await verifyDashboardCounts();
     await expect(row).toContainText('9,200,000.00');
     await page.reload();
     row=page.getByRole('row').filter({has:page.getByRole('link',{name,exact:true})});
