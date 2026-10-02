@@ -32,4 +32,8 @@ Migration 0003 is applied. The production Auth Site URL and exact `/auth/callbac
 
 The anonymous browser smoke tests passed locally and at the public production URL. Private routes redirect to login, export returns 401, and login/navigation checks pass at 320/390/760 pixels with 44px controls and no page overflow. Mobile property-card and print layouts were separately checked with non-production fixtures.
 
-Custom SMTP is not configured. Staff email-link sign-in and a complete authenticated browser CRUD/invitation scenario remain pending email delivery and a signed-in test session. The earlier shared-demo E2E result is not claimed as authenticated-team E2E coverage.
+Custom SMTP is not configured. Ordinary staff email delivery and a complete two-user browser invitation scenario remain pending a production sender. The earlier shared-demo E2E result is not claimed as authenticated-team E2E coverage.
+
+The owner's real Gmail sign-in succeeded on the public deployment after the built-in sender's hourly window cleared. The signed-in owner created `SPSB Finance`, added three explicitly fictional sample properties, renewed Sample Marina Tower from 12,000,000 to 13,000,000 with 200,000 refurbishment (13,200,000 updated value), and verified the 16 October 2027 renewal / 16 September 2027 reminder dates and one history record. A full page refresh preserved both the session and stored changes. No real property or insurer transaction was used for this check.
+
+Nine domain/session unit tests and four anonymous/mobile/callback browser tests pass. The production build passes. The public callback rejects missing credentials, clears the URL fragment, prohibits caching/referrer transmission, and the server finish route rejects an anonymous session. No user browser cookies or service-role keys were exported into test files.
