@@ -9,6 +9,23 @@ test('Anonymous visitors sign in before reading private portfolios or exporting'
   const exportResponse=await request.get('/api/export/csv');expect(exportResponse.status()).toBe(401);expect(await exportResponse.json()).toEqual({error:'Sign in to export your team portfolio.'});
 });
 
+test('Sign-in cooldown and distinct errors are clear without emailing users',async({page,context,baseURL},testInfo)=>{
+  await context.addCookies([{name:'sign-in-retry-at',value:String(Date.now()+4000),url:baseURL!,httpOnly:true}]);
+  await page.goto('/login?sent=1');
+  await expect(page.getByRole('status')).toContainText('accepted your request');
+  await expect(page.getByRole('button',{name:/Resend available in/})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Email me a sign-in link'})).toBeEnabled({timeout:10000});
+  await context.clearCookies();
+  for(const [error,text] of [['cooldown','requested recently'],['email-limit','sending limit'],['email-not-authorized','cannot send to this address'],['callback','different browser'],['constructor','could not send']]) {
+    await page.goto(`/login?error=${error}`);
+    await expect(page.getByRole('alert')).toContainText(text);
+  }
+  await context.addCookies([{name:'sign-in-retry-at',value:String(Date.now()+60000),url:baseURL!,httpOnly:true}]);
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/login?error=cooldown');
+  await page.screenshot({path:testInfo.outputPath('sign-in-cooldown.png'),fullPage:true});
+});
+
 test('Mobile sign-in and navigation stay reachable without sending email',async({page},testInfo)=>{
   await page.goto('/login');
   for(const width of [320,390,760]) {

@@ -12,10 +12,26 @@ export async function sendSignIn(form:FormData) {
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254) redirect('/login?error=invalid-email');
   const origin=process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/,'');
   if(!origin) redirect('/login?error=configuration');
+  const store=await cookies();
+  const retryAt=Number(store.get('sign-in-retry-at')?.value??0);
+  if(retryAt>Date.now()&&retryAt<=Date.now()+60000) redirect(`/login?error=cooldown&next=${encodeURIComponent(next)}`);
   const client=await db();
   const {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:`${origin}/auth/callback`}});
-  if(error) {console.error('Sign-in email delivery failed:',error.code);redirect(`/login?error=delivery&next=${encodeURIComponent(next)}`);}
-  (await cookies()).set('sign-in-next',next,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:3600});
+  if(error) {
+    console.error('Sign-in email delivery failed:',error.code);
+    const seconds=error.message.match(/after (\d+) seconds/i);
+    let reason='delivery';
+    if(error.status===429&&seconds) {
+      const wait=Math.min(60,Math.max(1,Number(seconds[1])));
+      store.set('sign-in-retry-at',String(Date.now()+wait*1000),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:wait});
+      reason='cooldown';
+    } else if(error.code==='over_email_send_rate_limit') reason='email-limit';
+    else if(error.status===429) reason='request-limit';
+    else if(error.code==='email_address_not_authorized') reason='email-not-authorized';
+    redirect(`/login?error=${reason}&next=${encodeURIComponent(next)}`);
+  }
+  store.set('sign-in-next',next,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:3600});
+  store.set('sign-in-retry-at',String(Date.now()+60000),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:60});
   redirect(`/login?sent=1&next=${encodeURIComponent(next)}`);
 }
 export async function signOut() {const client=await db();await client.auth.signOut();(await cookies()).delete('active-team');redirect('/login');}
