@@ -8,6 +8,8 @@ const blank:PropertyInput={name:'',address:'',insurer:'',policy_number:'',insure
 export function PropertyControls({property,add=false}:{property?:Property;add?:boolean}) {
   const [mode,setMode]=useState<Mode|null>(null),[form,setForm]=useState<PropertyInput>(blank),[notes,setNotes]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [pending,start]=useTransition(); const router=useRouter(); const dialog=useRef<HTMLDialogElement>(null);
+  const [ready,setReady]=useState(false);
+  useEffect(()=>setReady(true),[]);
   useEffect(()=>{if(mode) dialog.current?.showModal(); else dialog.current?.close();},[mode]);
   function open(next:Mode) {
     setError(''); setNotice(''); setNotes('');
@@ -28,7 +30,7 @@ export function PropertyControls({property,add=false}:{property?:Property;add?:b
     });
   }
   return <>
-    {add?<button className="button primary" onClick={()=>open('add')}>＋ Add property</button>:<div className="row-actions"><button className="button renew" onClick={()=>open('renew')}>Renew</button><button className="text-button" onClick={()=>open('edit')}>Edit</button><button className="text-button danger" onClick={()=>open('delete')}>Delete</button></div>}
+    {add?<button disabled={!ready||pending} className="button primary" onClick={()=>open('add')}>＋ Add property</button>:<div className="row-actions"><button disabled={!ready||pending} className="button renew" onClick={()=>open('renew')}>Renew</button><button disabled={!ready||pending} className="text-button" onClick={()=>open('edit')}>Edit</button><button disabled={!ready||pending} className="text-button danger" onClick={()=>open('delete')}>Delete</button></div>}
     {notice&&<div role="status" className="toast"><span>{notice}</span><button aria-label="Dismiss notification" onClick={()=>setNotice('')}>×</button></div>}
     <dialog ref={dialog} onCancel={e=>{if(pending)e.preventDefault();else setMode(null);}} aria-labelledby={`dialog-${property?.id||'new'}`} className="modal">
       <form onSubmit={submit}>

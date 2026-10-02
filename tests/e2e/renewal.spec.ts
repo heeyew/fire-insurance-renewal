@@ -9,10 +9,10 @@ test('Director creates, edits, renews, verifies history and refresh, exports and
   const date=new Date(today()+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+14);const renewal=date.toISOString().slice(0,10);
   let id:string|undefined;
   const verifyDashboardCounts=async()=>{
-    const result=await db.from('properties').select('renewal_date,status');
+    const result=await db.from('properties').select('renewal_date,reminder_date,status');
     expect(result.error).toBeNull();
     for(const status of STATUSES){
-      const count=result.data!.filter(property=>statusFor(property.renewal_date,property.status)===status).length;
+      const count=result.data!.filter(property=>statusFor(property)===status).length;
       await expect(page.getByRole('link',{name:`Show ${status} properties: ${count}`,exact:true})).toBeVisible();
     }
   };
@@ -35,6 +35,7 @@ test('Director creates, edits, renews, verifies history and refresh, exports and
     await expect(row).toContainText('8,300,000.00');await expect(row.locator('.status')).toHaveText('due');
     await verifyDashboardCounts();
     await page.getByRole('link',{name:/^Show due properties:/}).click();
+    await expect(page).toHaveURL(/\?status=due$/);
     await expect(page.getByRole('heading',{name:/^Due properties/})).toBeVisible();
     for(const badge of await page.locator('tbody .status').all()) await expect(badge).toHaveText('due');
     await page.getByRole('link',{name:'All properties',exact:true}).click();

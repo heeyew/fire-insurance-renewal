@@ -2,27 +2,27 @@
 
 ## Sprint 1 — Core Engine: Property CRUD + Renewal Action
 **Goal:** The Director can add, edit, delete properties and process a renewal end-to-end against the database.
-- [ ] Create Supabase tables (properties, renewal_records) + seed 5 demo properties.
-- [ ] Build `lib/data/properties.ts` — all CRUD functions.
-- [ ] Build `lib/data/renewals.ts` — insert renewal record, update property.
-- [ ] Build server action `renewProperty` — logs old→new value, advances renewal date +1 year, recalculates reminder_date + updated_value, sets status.
-- [ ] Build server actions `upsertProperty`, `deleteProperty`.
-- [ ] Property list page — table with all fields, sorted by reminder date.
-- [ ] Add/edit property form — insured value + refurbishment cost → updated value auto-calc; renewal date → reminder date auto-calc.
-- [ ] Renew button per property → modal → confirm → calls `renewProperty`.
-- [ ] Status badge (upcoming / due / renewed / lapsed) computed on read.
-- [ ] Delete property with confirm.
-- [ ] Left sidebar nav (Properties, Dashboard, Renewal List) — responsive.
+- [x] Create Supabase tables (properties, renewal_records) + seed 5 demo properties.
+- [x] Build `lib/data/properties.ts` — all CRUD functions.
+- [x] Build `lib/data/renewals.ts` — insert renewal record, update property.
+- [x] Build server action `renewProperty` — logs old→new value, advances renewal date +1 year, recalculates reminder_date + updated_value, sets status.
+- [x] Build server actions `upsertProperty`, `deleteProperty`.
+- [x] Property list page — table with all fields, sorted by reminder date.
+- [x] Add/edit property form — insured value + refurbishment cost → updated value auto-calc; renewal date → reminder date auto-calc.
+- [x] Renew button per property → modal → confirm → calls `renewProperty`.
+- [x] Status badge (upcoming / due / renewed / lapsed) computed on read.
+- [x] Delete property with confirm.
+- [x] Left sidebar nav (Properties, Dashboard, Renewal List) — responsive.
 
 **Definition of Done:** Director adds a property, sets insured value 10M + refurbishment 500K, sees updated value 10.5M and reminder date auto-set. Clicks Renew, enters 11M, sees renewal record logged, renewal date advanced +1 year, status changes to renewed. All persisted — survives refresh.
 
 ## Sprint 2 — Dashboard + Renewal List Export
 **Goal:** Dashboard summary + the printable/CSV renewal list that replaces the Excel sheet.
-- [ ] Dashboard page — counts (upcoming / due / renewed / lapsed), properties sorted by urgency.
-- [ ] Renewal list page — all properties with values, renewal dates, status; CSV export button; print-friendly layout.
-- [ ] Empty state: "No properties yet — add your first property."
-- [ ] Loading skeletons on all pages.
-- [ ] Error states with retry.
+- [x] Dashboard page — counts (upcoming / due / renewed / lapsed), properties sorted by urgency.
+- [x] Renewal list page — all properties with values, renewal dates, status; CSV export button; print-friendly layout.
+- [x] Empty state: "No properties yet — add your first property."
+- [x] Loading skeletons on all pages.
+- [x] Error states with retry.
 
 **Definition of Done:** Dashboard shows accurate counts. CSV export downloads a file with all properties, values, and renewal dates. Print layout is clean and readable. ← **v1 functional milestone**
 

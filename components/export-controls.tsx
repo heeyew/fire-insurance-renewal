@@ -1,7 +1,9 @@
 'use client';
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 export function ExportControls() {
   const [pending,setPending]=useState(false),[error,setError]=useState('');
+  const [ready,setReady]=useState(false);
+  useEffect(()=>setReady(true),[]);
   async function download() {
     setPending(true);setError('');
     try {
@@ -13,5 +15,5 @@ export function ExportControls() {
     } catch(e){setError(e instanceof Error?e.message:'Could not export the renewal list. Please retry.');}
     finally{setPending(false);}
   }
-  return <div className="export-controls no-print"><div className="export-buttons"><button className="button" onClick={()=>window.print()}>Print list</button><button className="button primary" disabled={pending} onClick={download}>{pending?'Preparing…':'↓ Export CSV'}</button></div>{error&&<p role="alert" className="form-error">{error}</p>}</div>;
+  return <div className="export-controls no-print"><div className="export-buttons"><button disabled={!ready} className="button" onClick={()=>window.print()}>Print list</button><button className="button primary" disabled={!ready||pending} onClick={download}>{pending?'Preparing…':'↓ Export CSV'}</button></div>{error&&<p role="alert" className="form-error">{error}</p>}</div>;
 }

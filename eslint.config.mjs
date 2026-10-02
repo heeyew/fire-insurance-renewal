@@ -6,5 +6,7 @@ const compat=new FlatCompat({baseDirectory:import.meta.dirname,resolvePluginsRel
 const config=[
   {ignores:['.next/**','node_modules/**','next-env.d.ts','test-results/**']},
   ...compat.extends('next/core-web-vitals','next/typescript'),
+  // Database views deliberately use full page navigation so links work before hydration.
+  {rules:{'@next/next/no-html-link-for-pages':'off'}},
 ];
 export default config;
