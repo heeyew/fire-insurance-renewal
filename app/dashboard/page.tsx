@@ -1,1 +1,1 @@
-export { default, dynamic } from '../properties/page';
+export { default, dynamic } from '../page';
