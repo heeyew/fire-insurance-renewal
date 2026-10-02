@@ -25,7 +25,7 @@ test('Mobile sign-in and navigation stay reachable without sending email',async(
   const menu=page.getByRole('button',{name:'Toggle navigation'});
   await menu.click();await expect(menu).toHaveAttribute('aria-expanded','true');
   await page.keyboard.press('Escape');await expect(menu).toHaveAttribute('aria-expanded','false');
-  await menu.click();await page.getByRole('button',{name:'Close navigation'}).click();
+  await menu.click();await page.getByRole('button',{name:'Close navigation'}).click({position:{x:378,y:100}});
   await expect(menu).toHaveAttribute('aria-expanded','false');
   await page.screenshot({path:testInfo.outputPath('mobile-sign-in.png'),fullPage:true});
 });

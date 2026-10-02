@@ -19,3 +19,13 @@ RLS enforces memberships at the database boundary, including direct REST request
 `pnpm test:migrations` checks both the original renewal engine and private-team isolation in isolated PostgreSQL with realistic `auth.uid()` and `auth.jwt()` functions. It does not bypass production RLS or send sign-in emails.
 
 Live database tests now require `TEST_ACCESS_TOKEN` and `TEST_TEAM_ID` for a signed-in test owner/editor. Browser CRUD tests also need `TEST_STORAGE_STATE` pointing to a private Playwright cookie-state file. Never commit session tokens or cookie-state files. Anonymous CRUD tests intentionally fail because the team upgrade removes anonymous access.
+
+## Hosted verification — 2 October 2026
+
+Migration 0003 is applied. The production Auth Site URL and exact `/auth/callback` allowlist entry are saved; email confirmation remains enabled and anonymous Auth sign-in remains disabled. The Vercel production deployment is connected to the Git commit.
+
+`scripts/verify-live-tenancy.sql` passed in the hosted database using disposable transaction fixtures: independent tenants, immutable property ownership, owner/editor/viewer restrictions, email-bound invitations, atomic renewal history, removed-member denial, delete cascade and anonymous denial. The transaction rolled back all fixtures. Domain tests and isolated migration tests passed, as did the production build.
+
+The anonymous browser smoke tests passed locally and at the public production URL. Private routes redirect to login, export returns 401, and login/navigation checks pass at 320/390/760 pixels with 44px controls and no page overflow. Mobile property-card and print layouts were separately checked with non-production fixtures.
+
+Custom SMTP is not configured. Staff email-link sign-in and a complete authenticated browser CRUD/invitation scenario remain pending email delivery and a signed-in test session. The earlier shared-demo E2E result is not claimed as authenticated-team E2E coverage.
