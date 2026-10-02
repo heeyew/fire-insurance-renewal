@@ -1,0 +1,30 @@
+import {PGlite} from '@electric-sql/pglite';
+import {readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+const date=value=>value instanceof Date?value.toISOString().slice(0,10):value;
+try {
+  await db.exec('create role anon; create role authenticated;');
+  for(const file of ['0001_init.sql','0002_atomic_renewals.sql']) await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
+  await db.exec('set role anon');
+  const seeds=await db.query('select * from properties order by renewal_date');
+  assert.equal(seeds.rows.length,5);
+  assert.ok(seeds.rows.some(p=>p.status==='due'));
+  const result=await db.query("insert into properties(name,insured_value,refurbishment_cost,renewal_date) values ('SQL Test',8000000,300000,'2028-02-29') returning *");
+  const p=result.rows[0]; assert.equal(Number(p.updated_value),8300000); assert.equal(date(p.reminder_date),'2028-01-30');
+  const args=[p.id,9000000,200000,p.revision,'Test'];
+  await db.query('select * from process_property_renewal($1,$2,$3,$4,$5)',args);
+  const renewed=(await db.query('select * from properties where id=$1',[p.id])).rows[0];
+  assert.equal(date(renewed.renewal_date),'2029-02-28');assert.equal(date(renewed.reminder_date),'2029-01-29');assert.equal(renewed.status,'renewed');assert.equal(Number(renewed.updated_value),9200000);
+  await assert.rejects(db.query('select * from process_property_renewal($1,$2,$3,$4,$5)',args),/changed/);
+  await assert.rejects(db.query('select * from process_property_renewal($1,$2,$3,$4,$5)',[p.id,-1,0,renewed.revision,'Test']),/nonnegative/);
+  await assert.rejects(db.query('select * from process_property_renewal($1,$2,$3,$4,$5)',[p.id,null,0,renewed.revision,'Test']),/nonnegative/);
+  const history=(await db.query('select * from renewal_records where property_id=$1',[p.id])).rows;
+  assert.equal(history.length,1); assert.equal(Number(history[0].previous_insured_value),8000000);assert.equal(Number(history[0].new_insured_value),9000000);
+  await db.query('select * from process_property_renewal($1,$2,$3,$4,$5)',[p.id,11000000,0,renewed.revision,'Second cycle']);
+  assert.equal(date((await db.query('select renewal_date from properties where id=$1',[p.id])).rows[0].renewal_date),'2030-02-28');
+  await db.query('delete from properties where id=$1',[p.id]);
+  assert.equal((await db.query('select * from renewal_records where property_id=$1',[p.id])).rows.length,0);
+  console.log('PASS: both migrations execute in PostgreSQL; anonymous RLS permissions, seed data, derived fields, atomic history, leap dates, stale/invalid renewals and delete cascade.');
+  console.log('This isolated migration check is not a live Supabase connectivity test.');
+} finally {await db.close();}

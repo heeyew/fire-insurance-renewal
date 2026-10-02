@@ -1,0 +1,1 @@
+export default function Loading() {return <div role="status" aria-label="Loading properties" className="loading-state"><div className="skeleton title-skeleton"/><div className="skeleton sub-skeleton"/>{Array.from({length:5},(_,i)=><div key={i} className="skeleton row-skeleton"/>)}<span className="sr-only">Loading properties…</span></div>;}
