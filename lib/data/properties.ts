@@ -1,25 +1,28 @@
 import 'server-only';
-import { db } from './db';
+import { teamContext,writableTeam } from './teams';
 import { Property, PropertyInput, amount, reminderDate, statusFor, updatedValue } from '../domain';
 export function normalize(row: Property): Property {
   const property={...row,insured_value:Number(row.insured_value),refurbishment_cost:Number(row.refurbishment_cost),updated_value:Number(row.updated_value)};
   return {...property,status:statusFor(property)};
 }
 export async function listProperties() {
-  const {data,error}=await db().from('properties').select('*').order('reminder_date').order('name');
+  const context=(await teamContext())!;
+  const {data,error}=await context.client.from('properties').select('*').eq('team_id',context.team!.id).order('reminder_date').order('name');
   if(error) throw error;
   return (data as Property[]).map(normalize);
 }
 export async function getProperty(id:string) {
-  const {data,error}=await db().from('properties').select('*').eq('id',id).maybeSingle();
+  const context=(await teamContext())!;
+  const {data,error}=await context.client.from('properties').select('*').eq('team_id',context.team!.id).eq('id',id).maybeSingle();
   if(error) throw error;
   return data ? normalize(data as Property) : null;
 }
 export async function saveProperty(input:PropertyInput) {
-  const client=db();
+  const context=await writableTeam();
+  const client=context.client;
   const insured=amount(input.insured_value,'Insured value'), refurb=amount(input.refurbishment_cost,'Refurbishment cost');
   const reminder=reminderDate(input.renewal_date);
-  const base={name:input.name.trim(),address:input.address.trim(),insurer:input.insurer.trim(),policy_number:input.policy_number.trim(),
+  const base={team_id:context.team!.id,user_id:context.user.id,name:input.name.trim(),address:input.address.trim(),insurer:input.insurer.trim(),policy_number:input.policy_number.trim(),
     insured_value:insured,refurbishment_cost:refurb,updated_value:updatedValue(insured,refurb),renewal_date:input.renewal_date,reminder_date:reminder};
   if(input.id) {
     // Ordinary metadata edits preserve renewed status; changing a cycle date resets it.
@@ -36,7 +39,8 @@ export async function saveProperty(input:PropertyInput) {
   return data.id as string;
 }
 export async function removeProperty(id:string, revision:number) {
-  const {data,error}=await db().from('properties').delete().eq('id',id).eq('revision',revision).select('id').maybeSingle();
+  const context=await writableTeam();
+  const {data,error}=await context.client.from('properties').delete().eq('team_id',context.team!.id).eq('id',id).eq('revision',revision).select('id').maybeSingle();
   if(error) throw error;
   if(!data) throw new Error('This property changed or was removed. Refresh and try again.');
 }

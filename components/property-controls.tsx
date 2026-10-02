@@ -1,13 +1,14 @@
 'use client';
-import { useEffect,useRef,useState,useTransition } from 'react';
+import { useEffect,useId,useRef,useState,useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Property,PropertyInput,formatAmount,formatDate,reminderDate,nextYear,updatedValue } from '@/lib/domain';
 import { upsertProperty,renewProperty,deleteProperty } from '@/lib/actions';
 type Mode='add'|'edit'|'renew'|'delete';
 const blank:PropertyInput={name:'',address:'',insurer:'',policy_number:'',insured_value:'',refurbishment_cost:'0',renewal_date:''};
-export function PropertyControls({property,add=false}:{property?:Property;add?:boolean}) {
+export function PropertyControls({property,add=false,readOnly=false}:{property?:Property;add?:boolean;readOnly?:boolean}) {
   const [mode,setMode]=useState<Mode|null>(null),[form,setForm]=useState<PropertyInput>(blank),[notes,setNotes]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [pending,start]=useTransition(); const router=useRouter(); const dialog=useRef<HTMLDialogElement>(null);
+  const dialogId=useId();
   const [ready,setReady]=useState(false);
   useEffect(()=>setReady(true),[]);
   useEffect(()=>{if(mode) dialog.current?.showModal(); else dialog.current?.close();},[mode]);
@@ -29,12 +30,13 @@ export function PropertyControls({property,add=false}:{property?:Property;add?:b
       router.refresh();
     });
   }
+  if(readOnly)return null;
   return <>
     {add?<button disabled={!ready||pending} className="button primary" onClick={()=>open('add')}>＋ Add property</button>:<div className="row-actions"><button disabled={!ready||pending} className="button renew" onClick={()=>open('renew')}>Renew</button><button disabled={!ready||pending} className="text-button" onClick={()=>open('edit')}>Edit</button><button disabled={!ready||pending} className="text-button danger" onClick={()=>open('delete')}>Delete</button></div>}
     {notice&&<div role="status" className="toast"><span>{notice}</span><button aria-label="Dismiss notification" onClick={()=>setNotice('')}>×</button></div>}
-    <dialog ref={dialog} onCancel={e=>{if(pending)e.preventDefault();else setMode(null);}} aria-labelledby={`dialog-${property?.id||'new'}`} className="modal">
+    <dialog ref={dialog} onCancel={e=>{if(pending)e.preventDefault();else setMode(null);}} aria-labelledby={dialogId} className="modal">
       <form onSubmit={submit}>
-        <div className="modal-head"><div><div className="eyebrow">{mode==='renew'?'ANNUAL RENEWAL':'PROPERTY PORTFOLIO'}</div><h2 id={`dialog-${property?.id||'new'}`}>{mode==='add'?'Add property':mode==='edit'?'Edit property':mode==='delete'?'Delete property?':`Renew ${property?.name}`}</h2></div><button type="button" aria-label="Close dialog" disabled={pending} className="close-button" onClick={()=>setMode(null)}>×</button></div>
+        <div className="modal-head"><div><div className="eyebrow">{mode==='renew'?'ANNUAL RENEWAL':'PROPERTY PORTFOLIO'}</div><h2 id={dialogId}>{mode==='add'?'Add property':mode==='edit'?'Edit property':mode==='delete'?'Delete property?':`Renew ${property?.name}`}</h2></div><button type="button" aria-label="Close dialog" disabled={pending} className="close-button" onClick={()=>setMode(null)}>×</button></div>
         {mode==='delete'?<p>Delete <strong>{property?.name}</strong> and its renewal history? This cannot be undone.</p>:<>
           {mode!=='renew'&&<><label>Property name<input required maxLength={200} autoComplete="off" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="e.g. Marina Bay Tower"/></label><label>Address<input maxLength={500} value={form.address} onChange={e=>change('address',e.target.value)} placeholder="Street address"/></label><div className="form-grid"><label>Insurer<input maxLength={200} value={form.insurer} onChange={e=>change('insurer',e.target.value)}/></label><label>Policy number<input maxLength={200} value={form.policy_number} onChange={e=>change('policy_number',e.target.value)}/></label></div></>}
           {mode==='renew'&&<p className="modal-context">Current insured value <strong>{formatAmount(property!.insured_value)}</strong><br/>This records the renewal and advances the current renewal date by one year.</p>}

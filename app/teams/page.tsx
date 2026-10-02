@@ -1,0 +1,23 @@
+import {redirect} from 'next/navigation';
+import {teamContext} from '@/lib/data/teams';
+import {createTeam,switchTeam,inviteMember,manageMember,revokeInvite,signOut,addSamples} from '@/lib/team-actions';
+export const dynamic='force-dynamic';
+export default async function Teams({searchParams}:{searchParams:Promise<{error?:string;created?:string;joined?:string;invited?:string}>}) {
+ const context=await teamContext(false);if(!context) redirect('/login');
+ const query=await searchParams;const {client,team,teams,user}=context;
+ const members=team?await client.from('team_members').select('*').eq('team_id',team.id).order('created_at'):{data:[],error:null};
+ const invites=team?.role==='owner'?await client.from('team_invitations').select('*').eq('team_id',team.id).order('created_at'):{data:[],error:null};
+ if(members.error||invites.error) throw members.error??invites.error;
+ const origin=process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/,'')??'';
+ return <><div className="page-heading"><div><h1>Team &amp; members</h1><p>Signed in as {user.email}</p></div><form action={signOut}><button className="button secondary">Sign out</button></form></div>
+ {query.error&&<p role="alert">{query.error==='owner'?'Only the team owner can manage members.':query.error==='name'?'Enter a team name of 1 to 100 characters.':query.error==='invite'?'Could not create the invitation. Check the email and role, then retry.':'Could not save this change. Please retry.'}</p>}
+ {(query.created||query.joined||query.invited)&&<p role="status">{query.invited?'Invitation created. Share its link with the invited person. No email was sent.':'Your private team is ready. Add properties from the dashboard.'}</p>}
+ <section className="panel team-panel"><h2>{team?`Current team: ${team.name}`:'Create your first private team'}</h2><p>{team?`Your role: ${team.role}. Viewers can read and export; editors can also manage properties and renewals. Owners manage membership.`:'Your team starts with an empty portfolio. Existing shared demo data is archived and is not inherited by a new team.'}</p>
+ {!!teams.length&&<form className="team-form" action={switchTeam}><label>Workspace<select name="team_id" defaultValue={team?.id}>{teams.map(t=><option key={t.id} value={t.id}>{t.name} ({t.role})</option>)}</select></label><button className="button primary">Open workspace</button></form>}
+ <form className="team-form" action={createTeam}><label>New team name<input name="name" required maxLength={100} placeholder="Finance team"/></label><button className="button secondary">Create private team</button></form>
+ {team&&team.role!=='viewer'&&<form className="team-form" action={addSamples}><p>Try the renewal workflow with fictional properties. This works only when your portfolio is empty.</p><button className="button secondary">Add sample properties to this team</button></form>}</section>
+ {team&&<section className="panel team-panel"><h2>Members</h2>{members.data?.map(member=><div className="team-member" key={member.user_id}><span>{member.email} <strong>{member.role}</strong></span>{team.role==='owner'&&member.role!=='owner'&&<form className="team-form" action={manageMember}><input type="hidden" name="user_id" value={member.user_id}/><label>Role for {member.email}<select name="role" defaultValue={member.role}><option value="editor">Editor</option><option value="viewer">Viewer</option><option value="remove">Remove access</option></select></label><button className="button secondary">Apply</button></form>}</div>)}</section>}
+ {team?.role==='owner'&&<section className="panel team-panel"><h2>Invite a colleague</h2><p>Create a link and share it yourself. Only the specified email can accept; links expire in seven days.</p><form className="team-form" action={inviteMember}><label>Colleague email<input name="email" type="email" required maxLength={254}/></label><label>Role<select name="role" defaultValue="editor"><option value="editor">Editor — manage properties and renewals</option><option value="viewer">Viewer — read and export</option></select></label><button className="button primary">Create invitation link</button></form>
+ <h3>Pending invitations</h3>{!invites.data?.length&&<p>No pending invitations.</p>}{invites.data?.map(invite=><div className="team-member" key={invite.id}><p>{invite.email} · {invite.role} · expires {new Date(invite.expires_at).toLocaleDateString('en-GB',{timeZone:'Asia/Kuala_Lumpur'})}</p><label>Invitation link<input readOnly value={`${origin}/join/${invite.token}`} aria-label={`Invitation link for ${invite.email}`}/></label><form action={revokeInvite}><input type="hidden" name="id" value={invite.id}/><button className="button secondary">Revoke invitation</button></form></div>)}</section>}</>;
+}
+

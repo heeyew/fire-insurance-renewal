@@ -13,7 +13,7 @@ function invalidate(id?:string) {
 }
 function failure(error:unknown):ActionResult {
   const message=error && typeof error==='object' && 'message' in error ? String(error.message) : '';
-  if(/^(This property|Invalid property|Set a renewal date|Enter |Insured value|Refurbishment cost|Property name|Renewal date|Notes |Field )/.test(message)) return {ok:false,error:message};
+  if(/^(Your team role|This property|Invalid property|Set a renewal date|Enter |Insured value|Refurbishment cost|Property name|Renewal date|Notes |Field )/.test(message)) return {ok:false,error:message};
   console.error('Property operation failed:',error);
   return {ok:false,error:'Could not save this change. Please retry. Nothing has been confirmed.'};
 }

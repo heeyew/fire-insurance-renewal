@@ -3,13 +3,16 @@ import {createClient} from '@supabase/supabase-js';
 import {readFile} from 'node:fs/promises';
 import {today,reminderDate,nextYear,statusFor,STATUSES} from '../../lib/domain';
 
-test('Director creates, edits, renews, verifies history and refresh, exports and deletes',async({page})=>{
-  const db=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+test('Director creates, edits, renews, verifies history and refresh, exports and deletes',async({page,context,baseURL})=>{
+  const token=process.env.TEST_ACCESS_TOKEN,team=process.env.TEST_TEAM_ID;
+  expect(token&&team&&process.env.TEST_STORAGE_STATE,'Private-team E2E needs TEST_ACCESS_TOKEN, TEST_TEAM_ID and TEST_STORAGE_STATE from a signed-in test user.').toBeTruthy();
+  const db=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}}});
+  await context.addCookies([{name:'active-team',value:team!,url:baseURL!}]);
   const name=`E2E Test Tower ${Date.now()}`;
   const date=new Date(today()+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+14);const renewal=date.toISOString().slice(0,10);
   let id:string|undefined;
   const verifyDashboardCounts=async()=>{
-    const result=await db.from('properties').select('renewal_date,reminder_date,status');
+    const result=await db.from('properties').select('renewal_date,reminder_date,status').eq('team_id',team!);
     expect(result.error).toBeNull();
     for(const status of STATUSES){
       const count=result.data!.filter(property=>statusFor(property)===status).length;
@@ -82,7 +85,21 @@ test('Director creates, edits, renews, verifies history and refresh, exports and
     await page.getByRole('link',{name:'Properties',exact:true}).click();
     await expect(page.getByRole('heading',{name:'Properties',exact:true})).toBeVisible();
     row=page.getByRole('row').filter({has:page.getByRole('link',{name,exact:true})});
+    for(const width of [320,390,760]) {
+      await page.setViewportSize({width,height:844});
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+      for(const target of await row.getByRole('button').all()) {
+        const bounds=await target.boundingBox();
+        expect(bounds!.height).toBeGreaterThanOrEqual(44);
+        expect(bounds!.x).toBeGreaterThanOrEqual(0);
+        expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(width);
+      }
+      await expect(row.locator('.updated-amount')).toBeVisible();
+      await expect(row.locator('.status')).toBeVisible();
+    }
+    await page.setViewportSize({width:390,height:844});
     await row.getByRole('button',{name:'Delete',exact:true}).click();
+    expect(await modal.getByRole('button',{name:'Delete property',exact:true}).evaluate(button=>button.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
     await modal.getByRole('button',{name:'Delete property',exact:true}).click();
     await expect(page.getByRole('link',{name,exact:true})).toHaveCount(0);
     expect((await db.from('properties').select('id').eq('id',id!)).data).toHaveLength(0);

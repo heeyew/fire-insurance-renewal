@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import {createClient} from '@supabase/supabase-js';
 const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 assert.ok(url && key,'Pull the connected Vercel environment before running database tests.');
-const db=createClient(url,key,{auth:{persistSession:false}});
+const token=process.env.TEST_ACCESS_TOKEN,team=process.env.TEST_TEAM_ID;
+assert.ok(token&&team,'Private-team database tests require TEST_ACCESS_TOKEN from a signed-in test user and TEST_TEAM_ID belonging to that user; anonymous CRUD is disabled.');
+const db=createClient(url,key,{auth:{persistSession:false},global:{headers:{Authorization:`Bearer ${token}`}}});
+const verified=await db.auth.getUser(token);assert.ok(!verified.error&&verified.data.user,'TEST_ACCESS_TOKEN must be a valid authenticated user session.');
 function checked(result){if(result.error) throw result.error; return result.data;}
 let id;
 try{
-  const row=checked(await db.from('properties').insert({name:`Integration Test ${Date.now()}`,insured_value:8000000,refurbishment_cost:300000,renewal_date:'2028-02-29',status:'upcoming'}).select('*').single());
+  const row=checked(await db.from('properties').insert({team_id:team,name:`Integration Test ${Date.now()}`,insured_value:8000000,refurbishment_cost:300000,renewal_date:'2028-02-29',status:'upcoming'}).select('*').single());
   id=row.id;
   assert.equal(Number(row.updated_value),8300000); assert.equal(row.reminder_date,'2028-01-30');
   const edited=checked(await db.from('properties').update({address:'Test address',refurbishment_cost:500000}).eq('id',id).select('*').single());
