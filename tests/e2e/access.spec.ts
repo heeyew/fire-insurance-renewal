@@ -18,7 +18,7 @@ test('Sign-in cooldown and distinct errors are clear without emailing users',asy
   await context.clearCookies();
   for(const [error,text] of [['cooldown','requested recently'],['email-limit','sending limit'],['email-not-authorized','cannot send to this address'],['callback','different browser'],['constructor','could not send']]) {
     await page.goto(`/login?error=${error}`);
-    await expect(page.getByRole('alert')).toContainText(text);
+    await expect(page.locator('main').getByRole('alert')).toContainText(text);
   }
   await context.addCookies([{name:'sign-in-retry-at',value:String(Date.now()+60000),url:baseURL!,httpOnly:true}]);
   await page.setViewportSize({width:390,height:844});
@@ -45,4 +45,16 @@ test('Mobile sign-in and navigation stay reachable without sending email',async(
   await menu.click();await page.getByRole('button',{name:'Close navigation'}).click({position:{x:378,y:100}});
   await expect(menu).toHaveAttribute('aria-expanded','false');
   await page.screenshot({path:testInfo.outputPath('mobile-sign-in.png'),fullPage:true});
+});
+
+test('Email callback rejects missing credentials and clears the fragment',async({page,request})=>{
+  await page.goto('/auth/complete#error=access_denied&error_description=expired');
+  await expect(page.locator('main').getByRole('alert')).toContainText('expired');
+  await expect(page).toHaveURL(/\/auth\/complete$/);
+  await expect(page.getByRole('link',{name:'Return to sign-in'})).toBeVisible();
+  const response=await request.get('/auth/complete');
+  expect(response.headers()['referrer-policy']).toBe('no-referrer');
+  expect(response.headers()['cache-control']).toContain('no-store');
+  await page.goto('/auth/finish');
+  await expect(page).toHaveURL(/\/login\?error=callback/);
 });
