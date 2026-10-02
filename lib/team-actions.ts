@@ -4,6 +4,7 @@ import {redirect} from 'next/navigation';
 import {revalidatePath} from 'next/cache';
 import {db} from './data/db';
 import {teamContext} from './data/teams';
+import {bufferedCookies} from './cookie-buffer';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function localNext(value:string) {return /^\/join\/[0-9a-f-]{36}$/i.test(value)?value:'/teams';}
 export async function sendSignIn(form:FormData) {
@@ -15,7 +16,8 @@ export async function sendSignIn(form:FormData) {
   const store=await cookies();
   const retryAt=Number(store.get('sign-in-retry-at')?.value??0);
   if(retryAt>Date.now()&&retryAt<=Date.now()+60000) redirect(`/login?error=cooldown&next=${encodeURIComponent(next)}`);
-  const client=await db();
+  const cookieBuffer=bufferedCookies(()=>store.getAll(),({name,value,options})=>store.set(name,value,options));
+  const client=await db(cookieBuffer);
   const {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:`${origin}/auth/callback`}});
   if(error) {
     console.error('Sign-in email delivery failed:',error.code);
@@ -30,6 +32,7 @@ export async function sendSignIn(form:FormData) {
     else if(error.code==='email_address_not_authorized') reason='email-not-authorized';
     redirect(`/login?error=${reason}&next=${encodeURIComponent(next)}`);
   }
+  cookieBuffer.commit();
   store.set('sign-in-next',next,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:3600});
   store.set('sign-in-retry-at',String(Date.now()+60000),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:60});
   redirect(`/login?sent=1&next=${encodeURIComponent(next)}`);
